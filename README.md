@@ -1,6 +1,6 @@
-# 电商分析系统
+# E-Commerce Analytics
 
-> Python程序设计课程设计 — 社交电商数据分析与决策支持
+> Python Course Project — Social E-commerce Data Analysis & Decision Support
 
 ## 这是什么
 
