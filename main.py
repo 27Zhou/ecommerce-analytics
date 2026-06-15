@@ -106,6 +106,7 @@ class ChartViewer:
              "discount_curve": "折扣曲线", "content_impact": "内容影响", "title_sentiment": "标题情感",
              "usage_rate": "券使用率", "ab_matrix": "AB测试", "unused_users": "未用券用户",
              "model_compare": "模型对比", "feature_importance": "特征重要性", "confusion_matrix": "混淆矩阵",
+             "correlation_heatmap": "特征相关性热力图", "error_analysis": "错误样本分析", "funnel": "转化漏斗",
              "fan_dist": "粉丝分布", "top20_interaction": "互动Top20", "influence_dist": "影响力分布",
              "category_preference": "类目偏好", "hotness": "商品热度指数",
              "value_segmentation": "用户价值分层", "social_influence_index": "社交影响力指数"}
@@ -595,6 +596,45 @@ class App:
             self._wl("🔮 消费倾向分析", "title"); self._hr()
             self._wl("  基于统计模型的用户购买行为预测", "dim")
             self._wl()
+
+            # 数据泄露修复说明
+            self._wl("数据处理", "sec")
+            removed = s.get('removed_features', [])
+            if removed:
+                self._wl("  已剔除购买后交互特征（避免数据泄露）:", "dim")
+                feat_cn = {"like_num": "点赞数", "comment_num": "评论数",
+                           "share_num": "分享数", "collect_num": "收藏数",
+                           "interaction_rate": "互动率"}
+                for f in removed:
+                    self._wl(f"    - {feat_cn.get(f, f)}", "dim")
+
+            new_feat = s.get('new_features', [])
+            if new_feat:
+                self._wl("  新增构造特征:", "dim")
+                new_cn = {"effective_price": "有效价格=原价×(1-折扣率)",
+                          "active_level": "活跃度等级(高/中/低)",
+                          "rfm_score": "RFM评分",
+                          "price_discount_ratio": "价格×折扣率交互"}
+                for f in new_feat:
+                    self._wl(f"    + {new_cn.get(f, f)}", "dim")
+            self._wl()
+
+            # SMOTE 过采样
+            smote_before = s.get('smote_before')
+            smote_after = s.get('smote_after')
+            if smote_before and smote_after:
+                self._wl("样本平衡处理（SMOTE过采样）", "sec")
+                self._wl(f"  过采样前: {smote_before['train_size']:,} 条 (正样本:{smote_before['class_1']}, 负样本:{smote_before['class_0']})", "val")
+                self._wl(f"  过采样后: {smote_after['train_size']:,} 条 (正样本:{smote_after['class_1']}, 负样本:{smote_after['class_0']})", "val")
+                self._wl("  说明: SMOTE生成少数类合成样本，解决正负样本不平衡问题", "term")
+                self._wl()
+
+            # 数据划分方式
+            self._wl("数据划分", "sec")
+            self._wl("  采用时间序列划分（按register_days排序，前80%训练，后20%测试）", "val")
+            self._wl("  避免随机划分导致的未来信息泄露", "term")
+            self._wl()
+
             self._wl("模型信息", "sec")
             self._metric("最优模型", s.get('best_model', 'N/A'))
             self._metric("训练集", f"{s.get('train_size',0):,} 条")
@@ -603,72 +643,84 @@ class App:
 
             r = s.get('model_results', {})
             if r:
-                self._wl("模型对比（通俗解读）", "sec")
-                self._wl("  " + "─" * 40, "dim")
+                self._wl("模型对比（含Stacking集成 + 概率校准）", "sec")
                 for n, m in r.items():
                     f1 = m.get('f1', 0)
                     auc = m.get('auc', 0)
-                    grade = "优秀 ✅" if f1 > 0.7 else ("良好 ⚠️" if f1 > 0.6 else "一般 ❌")
-                    self._wl(f"  {n}:")
-                    self._wl(f"    准确率 {m.get('accuracy',0):.1%} | F1 {f1:.3f} | AUC {auc:.3f} → {grade}", "explain")
+                    grade = "优秀" if f1 > 0.7 else ("良好" if f1 > 0.6 else "一般")
+                    self._wl(f"  {n}: 准确率{m.get('accuracy',0):.1%} | F1 {f1:.3f} | AUC {auc:.3f} → {grade}", "val")
                 self._wl()
-                self._wl("  指标说明:", "dim")
-                self._wl("  • 准确率: 预测对的比例", "dim")
-                self._wl("  • F1: 综合评价（越高越好，>0.7优秀）", "dim")
-                self._wl("  • AUC: 区分能力（>0.75良好）", "dim")
+                self._wl("  指标说明:", "term")
+                self._wl("  准确率: 预测对的比例 | F1: 综合评价(>0.7优秀) | AUC: 区分能力(>0.75良好)", "term")
+
+            # 概率校准说明
+            cal = s.get('calibration')
+            if cal:
+                self._wl()
+                self._wl("概率校准说明", "sec")
+                self._wl(f"  当前最优 AUC: {cal.get('当前最优AUC', 0):.4f}", "val")
+                self._wl(f"  {cal.get('说明', '')}", "term")
             self._wl()
+
+            # 漏斗分析
+            funnel = s.get('funnel', {})
+            if funnel:
+                self._wl("转化漏斗分析", "sec")
+                counts = funnel.get('counts', {})
+                rates = funnel.get('rates', {})
+                self._wl(f"  浏览: {counts.get('浏览',0):,} (100%)", "val")
+                self._wl(f"  加购: {counts.get('加购',0):,} ({rates.get('加购',0):.1f}%)", "val")
+                self._wl(f"  领券: {counts.get('领券',0):,} ({rates.get('领券',0):.1f}%)", "val")
+                self._wl(f"  购买: {counts.get('购买',0):,} ({rates.get('购买',0):.1f}%)", "val")
+                # 找最大流失环节
+                steps = ["浏览", "加购", "领券", "购买"]
+                step_rates = []
+                for i in range(1, len(steps)):
+                    key = f"{steps[i-1]}→{steps[i]}"
+                    step_rates.append((key, rates.get(key, 0)))
+                if step_rates:
+                    min_step = min(step_rates, key=lambda x: x[1])
+                    self._wl(f"  📌 最大流失环节: {min_step[0]} ({min_step[1]:.1f}%)", "warn")
+                self._wl()
 
             feat = s.get('top_features', {})
             if feat:
                 self._wl("影响购买的关键因素", "sec")
-                self._wl("  (按重要性排序，数值越大影响越强)", "dim")
-                self._wl()
+                self._wl("  按重要性排序，数值越大影响越强", "term")
                 feat_names = {
                     "add2cart": "加购行为", "coupon_used": "使用优惠券",
-                    "is_follow_author": "关注作者", "interaction_rate": "互动率",
-                    "purchase_freq": "购买频次", "user_level": "用户等级",
-                    "pv_count": "浏览次数", "price": "商品价格",
-                    "discount_rate": "折扣力度", "fans_num": "粉丝数",
-                    "social_influence": "社交影响力", "freshness_score": "内容新鲜度",
+                    "is_follow_author": "关注作者", "purchase_freq": "购买频次",
+                    "user_level": "用户等级", "pv_count": "浏览次数",
+                    "price": "商品价格", "discount_rate": "折扣力度",
+                    "fans_num": "粉丝数", "freshness_score": "内容新鲜度",
                     "total_spend": "历史消费", "register_days": "注册时长",
-                    "like_num": "点赞数", "comment_num": "评论数",
-                    "share_num": "分享数", "collect_num": "收藏数",
                     "title_emo_score": "标题吸引力", "img_count": "图片数量",
-                    "has_video": "有无视频", "age": "年龄", "gender": "性别",
+                    "has_video": "有无视频", "age": "年龄",
                     "category_encoded": "商品类目", "title_length": "标题长度",
-                    "last_click_gap": "距上次点击", "purchase_intent": "购买意图",
+                    "last_click_gap": "距上次点击",
+                    "effective_price": "有效价格", "active_level": "活跃度等级",
+                    "rfm_score": "RFM评分", "price_discount_ratio": "价格折扣交互",
                 }
                 for i, (k, v) in enumerate(feat.items(), 1):
                     cn = feat_names.get(k, k)
-                    # 重要性等级
-                    if v > 0.5:
-                        level = "🔴 极高"
-                    elif v > 0.1:
-                        level = "🟠 高"
-                    elif v > 0.01:
-                        level = "🟡 中"
-                    else:
-                        level = "🟢 低"
-                    self._wl(f"  {i:2d}. {cn:<12} {v:.4f}  {level}")
+                    level = "极高" if v > 0.5 else ("高" if v > 0.1 else ("中" if v > 0.01 else "低"))
+                    self._wl(f"  {i:2d}. {cn:<12} {v:.4f}  ({level})", "val")
 
                 self._wl()
-                self._wl("业务解读", "tip")
-                # 只解读最重要的3个特征
-                top_feats = list(feat.keys())[:3]
+                self._wl("  业务解读:", "tip")
                 feat_tips = {
                     "add2cart": "已加购用户是最有可能下单的，应重点跟进",
                     "coupon_used": "优惠券能有效促进转化",
                     "is_follow_author": "关注作者的用户购买意愿更强",
-                    "interaction_rate": "高互动用户购买意愿更强",
-                    "user_level": "用户等级越高，购买概率越大",
                     "purchase_freq": "老客户复购率更高",
                     "pv_count": "浏览越多，购买概率越大",
-                    "price": "价格对购买决策有显著影响",
-                    "discount_rate": "折扣力度影响购买意愿",
+                    "effective_price": "有效价格影响购买决策",
+                    "active_level": "活跃度越高，购买概率越大",
+                    "rfm_score": "RFM评分高的用户更易转化",
                 }
-                for k in top_feats:
+                for k in list(feat.keys())[:3]:
                     cn = feat_names.get(k, k)
-                    self._wl(f"  • {cn}: {feat_tips.get(k, '对购买决策有显著影响')}", "explain")
+                    self._wl(f"  • {cn}: {feat_tips.get(k, '对购买决策有显著影响')}", "tip")
         self._render("prediction", go)
 
     # ── 社交影响力 ──────────────────────────────────────────

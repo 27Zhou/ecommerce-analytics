@@ -12,10 +12,10 @@ venv/
 *.swp
 
 # 输出（可重新生成）
-output/*.png
-output/*.xlsx
-output/*.txt
-output/models/
+output/
+
+# 报告（不上传）
+report/
 
 # 数据库
 *.db
@@ -29,3 +29,6 @@ output/models/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 配置文件
+config/
