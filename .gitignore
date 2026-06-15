@@ -3,23 +3,19 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
-env/
-venv/
 .venv/
+venv/
 
 # IDE
 .idea/
 .vscode/
 *.swp
-*.swo
 
-# 敏感信息
-*.env
-*.key
-*.secret
-*.token
-config_local.py
+# 输出（可重新生成）
+output/*.png
+output/*.xlsx
+output/*.txt
+output/models/
 
 # 数据库
 *.db
@@ -28,18 +24,8 @@ config_local.py
 # 临时文件
 *.tmp
 *.log
-*.bak
 
-# 测试文件
-test_*.py
-*_test.py
-
-# 文档
-*.md
-*.txt
-*.docx
-*.pdf
-
-# Excel报告（自动生成）
-output/*.xlsx
-output/models/
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
