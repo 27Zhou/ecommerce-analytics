@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 敏感信息
+*.env
+*.key
+*.secret
+*.token
+config_local.py
+
+# 数据库
+*.db
+*.sqlite
+
+# 临时文件
+*.tmp
+*.log
+*.bak
+
+# 测试文件
+test_*.py
+*_test.py
+
+# 文档
+*.md
+*.txt
+*.docx
+*.pdf
+
+# Excel报告（自动生成）
+output/*.xlsx
+output/models/
